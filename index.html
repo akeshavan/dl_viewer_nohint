@@ -1,0 +1,345 @@
+<html>
+    <head>
+      <link href="https://fonts.googleapis.com/css?family=Nunito+Sans|Trocchi" rel="stylesheet">
+    <style>
+        body {
+            margin-top: 20px;
+            background: black;
+            overflow-y: hidden;
+            font-family: 'Trocchi', serif;
+        }
+        #myCanvas {
+          color: rgba(0, 0, 0, 0.87);
+          display: block;
+          min-height: 100%;
+          height: 100%;
+          min-width: 100%;
+          text-decoration: none solid rgba(0, 0, 0, 0.87);
+          touch-action: none;
+          vertical-align: middle;
+          width: 375px;
+          column-rule-color: rgba(0, 0, 0, 0.87);
+          align-self: center;
+          perspective-origin: 187.5px 308.5px;
+          transform-origin: 187.5px 308.5px;
+          user-select: none;
+          caret-color: rgba(0, 0, 0, 0.87);
+          border: 0px none rgba(0, 0, 0, 0.87);
+          font: normal normal normal normal 14px / 20px Roboto, Helvetica, sans-serif;
+          outline: rgba(0, 0, 0, 0.87) none 0px;
+          z-index: 0;
+        }
+
+        .buttons {
+
+            text-align: center;
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+
+        }
+
+        .btn {
+
+            color: white;
+            border-style: none;
+            border-radius: 5px;
+            padding: 10px;
+            margin: 10px;
+            font-size: 1.2em;
+        }
+
+        .truth {background-color: #8d585f;}
+        .agg {background-color: #5b6e8b;}
+        .pred {background-color: rgb(105, 73, 116);}
+
+        .next {
+            position: absolute;
+            right: 0;
+            top: 50%;
+            height: 100%;
+            font-size: 3em;
+            font-weight: bolder;
+            padding: 10px;
+            color: white;
+            cursor: pointer;
+        }
+
+        .next:hover {
+            color: steelblue;
+        }
+
+        .prev:hover {
+            color: steelblue;
+        }
+
+        .prev {
+            position: absolute;
+            left: 0;
+            color: white;
+            top: 50%;
+            height: 100%;
+            font-size: 3em;
+            font-weight: bolder;
+            padding: 10px;
+            cursor: pointer;
+        }
+
+        .metric{
+          color: white;
+          font-family: 'Trocchi', serif;
+        }
+
+        .metric h2{
+          font-weight: normal;
+        }
+
+        button {
+          font-family: 'Trocchi', serif;
+        }
+
+
+    </style>
+    </head>
+    <body>
+        <div class="metric">
+          <h2>Entropy: <span id="entropy"></span></h2>
+        </div>
+        <canvas id="myCanvas" resize></canvas>
+        <div class="buttons">
+            <button class="btn truth" onclick="toggle('truth')"> Toggle Truth </button>
+            <!--<button class="btn agg" onclick="toggle('agg')"> Toggle Hints </button>-->
+            <button class="btn pred" onclick="toggle('pred')"> Toggle Prediction</button>
+        </div>
+        <div>
+            <a class="next" onclick="getNext()"> > </a>
+        </div>
+        <div>
+            <a class="prev" onclick="getPrev()"> < </a>
+        </div>
+
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/paper.js/0.11.4/paper-full.min.js"></script>
+        <script
+                src="https://code.jquery.com/jquery-3.2.1.min.js"
+                integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4="
+                crossorigin="anonymous"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/qs/6.5.1/qs.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
+
+        <script type="text/javascript">
+            function get_img(path){
+                var base = new paper.Raster(path)
+                base.position = paper.view.center;
+                base.onLoad = function(){
+                    base.fitBounds(paper.view.bounds)
+                }
+                return base
+            }
+
+            function toggle(key){
+                window.rasters[key].visible = !window.rasters[key].visible
+            }
+
+            function load_all(number){
+                var base = get_img("predictions/base"+number+".jpg")
+                var truth = get_img("predictions/truth"+number+".png")
+                truth.opacity=0.5
+                var agg = get_img("predictions/agg"+number+".png")
+                agg.opacity=0.5
+                var pred = get_img("predictions/pred"+number+".png")
+                pred.opacity=0.5
+                pred.onMouseDrag = doPan
+                pred.onMouseUp = function(){
+                    window.panMouseDown = null
+                }
+                return {"base":base,"truth":truth,"agg":agg,"pred":pred}
+            }
+            // Only executed our code once the DOM is ready.
+            window.onload = function() {
+                $.getJSON("pred_manifest_metrics.json", function(d){
+                    var canvas = document.getElementById('myCanvas');
+                    // Create an empty project and a view for the canvas:
+                    paper.setup(canvas);
+                    window.rasters = load_all(d[0].id)
+                    window.manifest = d
+                    window.currentImg = d[0]
+                    $("#entropy")[0].innerText = d[0].data.entropy
+                })
+                // Get a reference to the canvas object
+
+
+
+                //for (r in rasters){
+                //rasters[r].setBounds(paper.view.bounds)
+                //}
+
+            }
+
+         window.onresize = function() {
+             /*
+                When the window size changes, change the bounds of all rasters
+              */
+
+             //allRasters.map(function(r){r.fitBounds(view.bounds)})
+             //console.log("resizing")
+
+             paper.view.setZoom(1);
+             for (r in window.rasters){
+                window.rasters[r].fitBounds(paper.view.bounds)
+             }
+
+
+         };
+
+         function getNext(){
+          paper.view.setZoom(1)
+          window.zoomFactor = 1
+          var idx = window.manifest.indexOf(window.currentImg)
+          var N = window.manifest.length
+          if (idx == (N - 1)){
+              idx = 0
+          } else {
+              idx++
+          }
+          //clear all rasters
+             for (r in window.rasters){
+                 window.rasters[r].remove()
+             }
+          window.rasters = load_all(window.manifest[idx].id)
+          window.currentImg = window.manifest[idx]
+          $("#entropy")[0].innerText = window.manifest[idx].data.entropy
+
+         }
+
+        function getPrev(){
+          paper.view.setZoom(1)
+          window.zoomFactor = 1
+
+          var idx = window.manifest.indexOf(window.currentImg)
+          var N = window.manifest.length
+          if (idx == 0){
+              idx = N-1
+          } else {
+              idx--
+          }
+          //clear all rasters
+             for (r in window.rasters){
+                 window.rasters[r].remove()
+             }
+          window.rasters = load_all(window.manifest[idx].id)
+          window.currentImg = window.manifest[idx]
+          $("#entropy")[0].innerText = window.manifest[idx].data.entropy
+         }
+
+
+        xfm = {}
+
+        xfm.clamp = function(number, min, max) {
+          /*
+            returns the number if number is between min or max. If number is > max,
+            returns max. If number < min, returns min
+          */
+          max = max || 0
+          min = min || 0
+          return Math.max(min, Math.min(number, max))
+
+        }
+
+        window.zoomFactor = 1
+
+        doZoom = function(e) {
+          /*
+            Zoom based on how far the user drags in the y direction
+          */
+          var zoomFactor = window.zoomFactor + e.deltaY / 200
+          window.zoomFactor = xfm.clamp(zoomFactor, 1, 3)
+          paper.view.setZoom(window.zoomFactor)
+        }
+
+        window.panFactor = {
+          x: 0,
+          y: 0
+        }
+
+        window.panMouseDown = null
+
+        doPan = function(e) {
+          /*
+            Pan based on how far the user drags in the x/y direction
+          */
+          if (window.panMouseDown == null) {
+            window.panMouseDown = e
+          }
+
+          window.panFactor.x = e.point.x - window.panMouseDown.point.x
+          window.panFactor.y = e.point.y - window.panMouseDown.point.y
+
+          paper.view.translate(window.panFactor.x, window.panFactor.y)
+
+        }
+
+
+        function mousewheel(event) {
+          event.preventDefault();
+          event.stopPropagation();
+          event.delta = {}
+          event.delta.y = event.deltaY
+          doZoom(event)
+
+        }
+
+        onmousewheel = mousewheel
+
+        var stage = document.getElementById('myCanvas');
+    var mc = new Hammer.Manager(stage, {
+      stopPropagation: true,
+      preventDefault: true
+    });
+    var Pinch = new Hammer.Pinch();
+
+    // add the recognizer
+    mc.add(Pinch);
+
+
+    window.prevZoom
+    var tmpzoom = 1
+
+    // subscribe to events
+    mc.on('pinch', function(e) {
+        // do something cool
+        //console.log("pinch", window.mode)
+        if (e){
+            e.preventDefault()
+            tmpzoom = xfm.clamp(e.scale/window.startScale*window.zoomFactor, 1, 5)
+            view.setZoom(tmpzoom)
+        }
+    });
+
+    mc.on('pinchend', function(e) {
+
+      if (e) {
+        e.preventDefault()
+        window.zoomFactor = tmpzoom
+        window.panMouseDown = null
+      }
+
+    });
+
+    mc.on('pinchstart', function(e) {
+      // do something cool
+
+      if (e) {
+
+        e.preventDefault()
+
+        window.startScale = e.scale
+
+      }
+
+    });
+
+
+        </script>
+
+    </body>
+</html>
